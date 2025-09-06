@@ -1,12 +1,13 @@
-🤖 #AI-Powered Sales Forecaster & Insights Engine#
+AI-Powered Sales Forecaster & Insights Engine:
 This is a complete, end-to-end data science and machine learning project that analyzes historical sales data, predicts future trends using a time-series model, and generates a strategic business summary using the Google Gemini Generative AI. The entire application is deployed as a fully interactive web app using Streamlit.
 
-🚀 Live Application
+Live Application-
 You can access and interact with the live deployed application here:
 
 https://ai-sales-forecaster.streamlit.app/
 
-✨ Key Features
+Key Features:-
+
 Interactive Dashboard: A clean, user-friendly interface built with Streamlit.
 
 Data Analysis: Performs Exploratory Data Analysis (EDA) to find key insights on sales by region and product category.
@@ -19,7 +20,8 @@ Secure API Handling: Uses Streamlit's secrets management for secure handling of 
 
 Optimized Performance: Implements caching to ensure a fast and responsive user experience after the initial data processing.
 
-🛠️ Tech Stack
+Tech Stack:-
+
 Language: Python
 
 Libraries: Streamlit, Pandas, Prophet, Matplotlib, Seaborn, Google Generative AI
@@ -30,7 +32,7 @@ Version Control: Git, GitHub
 
 Deployment: Streamlit Community Cloud
 
-📋 Project Management & Process
+Project Management & Process:
 This project was managed from start to finish using Agile principles and industry-standard tools. The entire workflow, from initial planning to final deployment, was tracked in Jira.
 
 1. The Plan (Product Backlog):
