@@ -1,4 +1,4 @@
-#🤖 AI-Powered Sales Forecaster & Insights Engine
+🤖 #AI-Powered Sales Forecaster & Insights Engine
 This is a complete, end-to-end data science and machine learning project that analyzes historical sales data, predicts future trends using a time-series model, and generates a strategic business summary using the Google Gemini Generative AI. The entire application is deployed as a fully interactive web app using Streamlit.
 
 🚀 Live Application
