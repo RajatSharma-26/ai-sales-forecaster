@@ -4,16 +4,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from prophet import Prophet
 import google.generativeai as genai
+import kagglehub
+import os
 import io
-
 
 # --- Optimized Helper Functions with Caching ---
 
-# Cache the data loading and cleaning. This function will only rerun if the uploaded file changes.
 @st.cache_data
-def load_and_clean_data(file_buffer: io.BytesIO, date_column: str) -> pd.DataFrame:
-    """Loads and cleans the dataset from an in-memory file buffer."""
-    df = pd.read_csv(file_buffer)
+def load_and_clean_data(file_path: str, date_column: str) -> pd.DataFrame:
+    """Loads and cleans the dataset from a local file path."""
+    df = pd.read_csv(file_path)
     df[date_column] = pd.to_datetime(df[date_column], dayfirst=True, errors='coerce')
     df.dropna(subset=[date_column], inplace=True)
     for col in df.columns:
@@ -24,8 +24,6 @@ def load_and_clean_data(file_buffer: io.BytesIO, date_column: str) -> pd.DataFra
                 df[col] = df[col].fillna(df[col].mode()[0])
     return df
 
-
-# Cache the heavy model training. This will only run once per session for the same data.
 @st.cache_resource
 def create_and_run_forecast(df: pd.DataFrame) -> tuple:
     """Creates and returns a sales forecast and the model."""
@@ -36,18 +34,12 @@ def create_and_run_forecast(df: pd.DataFrame) -> tuple:
     forecast = model.predict(future)
     return model, forecast
 
-
-# (Other functions remain the same as they are fast)
 def perform_eda_and_visualize(df: pd.DataFrame) -> tuple:
-    """Performs EDA and returns key insights."""
     sales_by_category = df.groupby('Category')['Sales'].sum().sort_values(ascending=False)
     sales_by_region = df.groupby('Region')['Sales'].sum().sort_values(ascending=False)
     return sales_by_category, sales_by_region
 
-
-def get_ai_summary(forecast_df: pd.DataFrame, historical_df: pd.DataFrame, sales_by_category: pd.Series,
-                   sales_by_region: pd.Series) -> str:
-    """Generates a business summary using the configured GenAI model."""
+def get_ai_summary(forecast_df: pd.DataFrame, historical_df: pd.DataFrame, sales_by_category: pd.Series, sales_by_region: pd.Series) -> str:
     model = genai.GenerativeModel('gemini-1.5-flash-latest')
     last_historical_date = historical_df['Order Date'].max()
     next_year_forecast = forecast_df[forecast_df['ds'] > last_historical_date]
@@ -59,7 +51,6 @@ def get_ai_summary(forecast_df: pd.DataFrame, historical_df: pd.DataFrame, sales
     top_region = sales_by_region.index[0]
     prompt = f"""
     You are a professional business analyst summarizing a sales report for an executive.
-    Your tone should be formal, insightful, and concise.
     Based on the following data, generate a concise 3-paragraph summary:
     Key Performance Indicators:
     - Total Forecasted Sales for the Next 12 Months: ${total_forecasted_sales:,.2f}
@@ -70,43 +61,38 @@ def get_ai_summary(forecast_df: pd.DataFrame, historical_df: pd.DataFrame, sales
     response = model.generate_content(prompt)
     return response.text
 
-
 # --- Streamlit App UI ---
 st.set_page_config(layout="wide")
 st.title("🤖 AI-Powered Sales Forecaster & Insights Engine")
-st.markdown(
-    "This application analyzes historical sales data, forecasts future trends, and generates a business summary using Generative AI.")
+st.markdown("This application automatically downloads the required sales data, forecasts future trends, and generates a business summary using Generative AI.")
 
 st.sidebar.header("⚙️ Configuration")
 api_key_input = st.sidebar.text_input(
-    "Enter your Google Gemini API Key",
+    "Enter your Google Gemini API Key", 
     type="password",
-    help="Get your free API key from Google AI Studio."
+    help="Get your free API key from Google AI Studio to run the analysis."
 )
-
-st.sidebar.header("1. Upload Your Data")
-uploaded_file = st.sidebar.file_uploader("Choose a CSV file", type="csv")
 
 if api_key_input:
     try:
         genai.configure(api_key=api_key_input)
         st.sidebar.success("✅ Gemini API Key Loaded Successfully!")
-    except Exception as e:
-        st.sidebar.error("❌ Invalid API Key. Please check and try again.")
 
-    if uploaded_file is not None:
-        st.sidebar.info("Processing data... The first run may take a minute.")
+        with st.spinner('Downloading dataset from Kaggle...'):
+            # Download latest version of the dataset
+            path = kagglehub.dataset_download("rohitsahoo/sales-forecasting")
+            st.sidebar.info(f"Dataset downloaded to: {path}")
+            # Construct the full path to the train.csv file
+            file_path = os.path.join(path, "train.csv")
 
-        # Run the main processing functions
-        cleaned_df = load_and_clean_data(uploaded_file, 'Order Date')
-        prophet_model, forecast = create_and_run_forecast(cleaned_df)
-
+        with st.spinner('Processing data... This may take a minute.'):
+            cleaned_df = load_and_clean_data(file_path, 'Order Date')
+            prophet_model, forecast = create_and_run_forecast(cleaned_df)
+        
         st.sidebar.success("Data processed successfully!")
         st.header("📊 Business Intelligence Dashboard")
-
-        # Run the faster EDA function after the main processing
         category_sales, region_sales = perform_eda_and_visualize(cleaned_df)
-
+        
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("Sales by Region")
@@ -124,12 +110,16 @@ if api_key_input:
         st.header("📈 Sales Forecast for the Next 12 Months")
         fig2 = prophet_model.plot(forecast)
         st.pyplot(fig2)
-
+        
         st.header("📝 AI-Generated Business Summary")
         with st.spinner("Generating AI summary..."):
             summary = get_ai_summary(forecast, cleaned_df, category_sales, region_sales)
             st.markdown(summary)
-    else:
-        st.info("Awaiting for a CSV file to be uploaded.")
+
+    except Exception as e:
+        st.sidebar.error(f"An error occurred: {e}")
+        st.error(f"An error occurred during processing. Please check the sidebar for details.")
+
 else:
     st.warning("Please enter your Google Gemini API Key in the sidebar to begin.")
+
